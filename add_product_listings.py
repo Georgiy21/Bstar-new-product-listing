@@ -6,7 +6,6 @@ import itertools
 import collections
 from itertools import groupby
 
-
 # * Use OOP for the next vendors
 
 #! Structure:
@@ -70,16 +69,16 @@ def preprocess_file(file_p, file_s):
 
     return price_list
 
+#? Change the range of products here
 # decide whether product has varients
 def classify_product(sorted_list):
-    model = sorted_list[38]['Model #'].strip()
-    # for i in sorted_list[33:40]:
-    #     print(i['Model #'])
+    model = sorted_list[35]['Model #'].strip()
+
     return_list = []
     group_list = []
     temp_prod = ''
 
-    for product in sorted_list[38:48]:
+    for product in sorted_list[35:42]:
         p_model = product['Model #'].split('-')[0].strip()
 
         # if left part of model of the product match with model
@@ -363,7 +362,7 @@ def get_image(pl):
                             var_img.append(v)
                 img_lists.append(var_img)
 
-    print(img_lists)
+    # print(img_lists)
     return img_lists
 
 # Get the type for the product
@@ -448,7 +447,6 @@ def get_sku(pl):
     
     return skus
 
-
 def produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, main_img, var_img, img, obj_num):
 
     template_header = {'Handle': '', 'Title': '', 'Body (HTML)': '',
@@ -476,7 +474,7 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
     option = 1
 
     template_header['Handle'] = handle
-    template_header['Image Alt Text'] = ''
+    # template_header['Image Alt Text'] = ''
     
     if img == 0 :
         template_header['Title'] = title
@@ -494,20 +492,17 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
         template_header['Published'] = published
         template_header['Gift Card'] = gift_card
 
-        # for key, value in option_dicts[obj_num].items():
         for key, value in option_dicts[img].items():
             template_header['Option' + str(option) + ' Name'] = key
             template_header['Option' + str(option) + ' Value'] = value
             option += 1
 
-        # template_header['Variant SKU'] = skus[obj_num]
         template_header['Variant SKU'] = skus[img]
 
-        # template_header['Variant Grams'] = total_weights[obj_num]
         template_header['Variant Grams'] = total_weights[img]
 
         template_header['Variant Inventory Tracker'] = variant_inventory_tracker
-        template_header['Variant Inventory Qty'] = 0
+        template_header['Variant Inventory Qty'] = 1
         template_header['Variant Inventory Policy'] = variant_inventory_policy
         template_header['Variant Fulfillment Service'] = variant_fulfillment_service
         template_header['Variant Price'] = '0.0'
@@ -515,7 +510,6 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
         template_header['Variant Requires Shipping'] = variant_requires_shipping
         template_header['Variant Taxable'] = variant_taxable
 
-        # template_header['Variant Barcode'] = barcodes[obj_num]
         template_header['Variant Barcode'] = barcodes[img]
 
         template_header['Variant Weight Unit'] = weight_unit
@@ -528,6 +522,9 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
     else:
         new_img = img + 1
         if new_img <= obj_num:
+
+            # template_header['Title'] = title
+
             for key, value in option_dicts[img].items():
                 template_header['Option' + str(option) + ' Value'] = value
                 option += 1
@@ -535,7 +532,7 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
             template_header['Variant SKU'] = skus[img]
             template_header['Variant Grams'] = total_weights[img]
             template_header['Variant Inventory Tracker'] = variant_inventory_tracker
-            template_header['Variant Inventory Qty'] = 0
+            template_header['Variant Inventory Qty'] = 1
             template_header['Variant Inventory Policy'] = variant_inventory_policy
             template_header['Variant Fulfillment Service'] = variant_fulfillment_service
             template_header['Variant Price'] = '0.0'
@@ -550,8 +547,11 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
 
             new_line = template_header
         else:
-            # template_header['Variant Inventory Policy'] = variant_inventory_policy
-            # template_header['Variant Fulfillment Service'] = variant_fulfillment_service
+            if obj_num > 1:
+                template_header['Variant Inventory Policy'] = variant_inventory_policy
+                template_header['Variant Fulfillment Service'] = variant_fulfillment_service
+            else:
+                pass
             try:
                 template_header['Image Src'] = main_img[img]
                 template_header['Variant Image'] = var_img[img]
@@ -564,6 +564,7 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
 
     
     return new_line
+
 
 def main():
     filename_price = 'Price List -  Bestar - September 2020 - Canada.csv'
