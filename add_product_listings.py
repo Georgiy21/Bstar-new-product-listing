@@ -78,7 +78,7 @@ def classify_product(sorted_list):
     group_list = []
     temp_prod = ''
 
-    for product in sorted_list[35:42]:
+    for product in sorted_list[35:45]:
         p_model = product['Model #'].split('-')[0].strip()
 
         # if left part of model of the product match with model
@@ -329,40 +329,18 @@ def gen_tags(pl):
 def get_image(pl):
 
     img_lists = []
-    main_img = []
-    var_img = []
-    count = 0
-       
-    for i in range(len(pl)):
-        if len(pl) == 1:
-            for k,v in pl[i].items():
-                if 'Image' in k:
-                    if str(v) == 'nan':
-                        continue
-                    else:
-                        main_img.append(v)
-            img_lists.append(main_img)
-            img_lists.append([''])
-        else:
-            if i == 0:
-                for k,v in pl[i].items():
-                    if 'Image' in k:
-                        if str(v) == 'nan':
-                            continue
-                        else:
-                            main_img.append(v)
-                img_lists.append(main_img)
-                
-            else:
-                for k,v in pl[i].items():
-                    if 'Image' in k:
-                        if str(v) == 'nan':
-                            continue
-                        else:
-                            var_img.append(v)
-                img_lists.append(var_img)
+ 
+    for product in pl:
+        images = []
+        for k,v in product.items():
+            if 'Image' in k:
+                if str(v) == 'nan':
+                    continue
+                else:
+                    images.append(v)
+        img_lists.append(images)
 
-    # print(img_lists)
+    print(img_lists)
     return img_lists
 
 # Get the type for the product
@@ -447,7 +425,7 @@ def get_sku(pl):
     
     return skus
 
-def produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, main_img, var_img, img, obj_num):
+def produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, main_img, img, obj, obj_num):
 
     template_header = {'Handle': '', 'Title': '', 'Body (HTML)': '',
                        'Vendor': '', 'Type': '', 'Tags': '', 'Published': '', 'Option1 Name': '',
@@ -467,16 +445,11 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
                        'Variant Tax Code': '', 'Cost per items': ''}
     new_line = {}
 
-    # ? if first dict is bigger, then over second iteration graps value 'Full' as oppose to only 'Black Grey & White'
-    # option_dicts = [{'Colour': 'White & Rustic Brown'}, 'Size': 'Full'},
-    #                 {'Colour': 'Black Grey & White'}]
-
     option = 1
 
     template_header['Handle'] = handle
-    # template_header['Image Alt Text'] = ''
     
-    if img == 0 :
+    if obj == 0 and img == 0:
         template_header['Title'] = title
         template_header['Body (HTML)'] = body
         template_header['Vendor'] = vendor
@@ -514,23 +487,20 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
 
         template_header['Variant Weight Unit'] = weight_unit
         template_header['Image Src'] = main_img[img]
-        template_header['Variant Image'] = var_img[img]
         template_header['Image Position'] = img + 1
 
         new_line = template_header
 
     else:
-        new_img = img + 1
-        if new_img <= obj_num:
 
-            # template_header['Title'] = title
+        if obj >= 1 and img == 0:
 
-            for key, value in option_dicts[img].items():
+            for key, value in option_dicts[obj].items():
                 template_header['Option' + str(option) + ' Value'] = value
                 option += 1
 
-            template_header['Variant SKU'] = skus[img]
-            template_header['Variant Grams'] = total_weights[img]
+            template_header['Variant SKU'] = skus[obj]
+            template_header['Variant Grams'] = total_weights[obj]
             template_header['Variant Inventory Tracker'] = variant_inventory_tracker
             template_header['Variant Inventory Qty'] = 1
             template_header['Variant Inventory Policy'] = variant_inventory_policy
@@ -539,22 +509,15 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
             template_header['Variant Compare At Price'] = '0.0'
             template_header['Variant Requires Shipping'] = variant_requires_shipping
             template_header['Variant Taxable'] = variant_taxable
-            template_header['Variant Barcode'] = barcodes[img]
+            template_header['Variant Barcode'] = barcodes[obj]
             template_header['Variant Weight Unit'] = weight_unit
-            template_header['Image Src'] = main_img[img]
-            template_header['Variant Image'] = var_img[img]
+            template_header['Image Src'] = main_img[obj]
             template_header['Image Position'] = img + 1
 
             new_line = template_header
         else:
-            if obj_num > 1:
-                template_header['Variant Inventory Policy'] = variant_inventory_policy
-                template_header['Variant Fulfillment Service'] = variant_fulfillment_service
-            else:
-                pass
             try:
                 template_header['Image Src'] = main_img[img]
-                template_header['Variant Image'] = var_img[img]
             except IndexError:
                 pass
             template_header['Image Position'] = img + 1
@@ -599,16 +562,14 @@ def main():
             
             obj_num = len(items)
 
-            main_img = img_lists[0]
-            var_img = img_lists[1]
-            count = 0
+           
+            for obj in range(len(img_lists)):
+                for i in range(len(img_lists[obj])):
+                    line = produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, img_lists[obj], i , obj, obj_num)
+                    writer.writerow(line)
 
-            # run the loop until main product img list is exhausted
-            for (i, v) in itertools.zip_longest(main_img, var_img, fillvalue=''):
-                line = produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, main_img, var_img, count , obj_num)
-                writer.writerow(line)
-                count += 1
-            
+
 
 if __name__ == '__main__':
     main()
+
