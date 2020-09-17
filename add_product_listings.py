@@ -1,10 +1,6 @@
 import csv
 import pandas as pd
-import nltk
-from nltk.tokenize import word_tokenize
-import itertools
-import collections
-from itertools import groupby
+import re
 
 # * Use OOP for the next vendors
 
@@ -15,6 +11,7 @@ from itertools import groupby
 
 columns = ['Handle', 'Title', 'Body (HTML)', 'Vendor', 'Type', 'Tags', 'Published', 'Option1 Name', 'Option1 Value', 'Option2 Name', 'Option2 Value', 'Option3 Name', 'Option3 Value', 'Variant SKU', 'Variant Grams', 'Variant Inventory Tracker', 'Variant Inventory Qty', 'Variant Inventory Policy', 'Variant Fulfillment Service', 'Variant Price', 'Variant Compare At Price', 'Variant Requires Shipping', 'Variant Taxable', 'Variant Barcode', 'Image Src', 'Image Position', 'Image Alt Text', 'Gift Card', 'SEO Title', 'SEO Description',
            'Google Shopping / Google Product Category', 'Google Shopping / Gender', 'Google Shopping / Age Group', 'Google Shopping / MPN', 'Google Shopping / AdWords Grouping', 'Google Shopping / AdWords Labels', 'Google Shopping / Condition', 'Google Shopping / Custom Product', 'Google Shopping / Custom Label 0', 'Google Shopping / Custom Label 1', 'Google Shopping / Custom Label 2', 'Google Shopping / Custom Label 3', 'Google Shopping / Custom Label 4', 'Variant Image', 'Variant Weight Unit', 'Variant Tax Code', 'Cost per items']
+# columns = []
 info_fields = ['Model #', 'Image 1', 'Image 2', 'Image 3', 'Image 4', 'Image 5', 'Image 6', 'Image 7', 'Image 8', 'Image 9', 'Image 10', 'Image 11',
                'Image 12', 'Product Name', 'Features', 'Brand', 'Total Weight', 'Delivered Cost CA', 'Cost', 'UPC Code', 'Color', 'Category #1', 'Category #2']
            
@@ -28,7 +25,7 @@ variant_requires_shipping = 'TRUE'
 gift_card = 'FALSE'
 weight_unit = 'lb'
                        
-# Working with CSV file extention.
+#! Change the source file to have only new products
 # Remove first line and preprocess second line to be the header for key/value pairs
 # Return a list of new product SKUs with info: ['Model # ', 'Images[1-12]', 'Product Name', 'Features', 'Brand', 'Delivered Cost CA', 'Cost', 'Total Weight', '1', 'UPC Code']
 def preprocess_file(file_p, file_s):
@@ -69,16 +66,16 @@ def preprocess_file(file_p, file_s):
 
     return price_list
 
-#? Change the range of products here
+#! Change the range of products here
 # decide whether product has varients
 def classify_product(sorted_list):
-    model = sorted_list[35]['Model #'].strip()
+    model = sorted_list[70]['Model #'].strip()
 
     return_list = []
     group_list = []
     temp_prod = ''
 
-    for product in sorted_list[35:45]:
+    for product in sorted_list[70:110]:
         p_model = product['Model #'].split('-')[0].strip()
 
         # if left part of model of the product match with model
@@ -99,7 +96,6 @@ def classify_product(sorted_list):
                 return_list.append(group_list)
                 group_list = []
             temp_prod = product
-            model = product['Model #'].strip()
             
 
     return return_list
@@ -115,52 +111,30 @@ def get_title_handle(pl):
     mod_title = ''
 
     for product in pl:
-        count += 1
         for k, v in product.items():
             if k == 'Product Name':
-                title = v
+                title = v.replace('Bestar' , '').strip()
                 if handle == '':
                     handle = v.lower().replace(' ', '-').replace('---', '-')
                 else:
                     continue
-        # handles.append(handle)
 
-    if count > 1:
+    if len(pl) > 1:
         mod_title = title.split('-')[0].strip()
-        title = mod_title + ' - Available in ' + str(count) + ' Colours'
-
+        title = mod_title + ' - Available in ' + str(len(pl)) + ' Colours'
+        handle = mod_title.lower().replace(' ', '-')
+        
     return title, handle
 
-# Find longest img list out of main_img list and var_img list
-def longest_list(lst): 
-    maxList = max(lst, key = lambda i: len(i)) 
-    return maxList
-
-#! Not ready and not used
-def get_img_alt_text(vendor, title, items, img_lists):
+# Generate Alt Img Text
+def get_img_alt_text(items):
     
-    alt_text = ''
-    color = ''
     img_alt_text = []
-    # main_img = img_lists[0]
-    # var_img = img_lists[1]
-
-    long_lst = long_lst(img_lists)
 
     for product in items:
-        for k,v in product.items():
-            if k == 'Color':
-                color = v
+        img_alt_text.append(product['Product Name'].replace('Bestar', '').strip())
 
-
-    for i in long_lst:
-        if '&' in title:
-            alt_text = vendor + ' ' + title
-        else:
-            alt_text = vendor + ' ' + color + ' ' + title
-
-        img_alt_text.append(alt_text)
-
+   
     return img_alt_text
 
 # Split and preprocess 'Features' text into tokens
@@ -168,56 +142,40 @@ def get_img_alt_text(vendor, title, items, img_lists):
 # [-] merges incomplete sentces into one
 def get_text(product):
 
-    end_chars = ['.', '?', '!']
-    tokens = []
+    text = ''
     complete_sentences = []
-
     for k, v in product.items():
         if k == 'Features':
-            for char in end_chars:
-                if char in v:
-                    test = v.split(char)
+            # print(v,'\n')
+            text = v
 
-                    for i in test:
-                        sent = ''
-                        sent = i.strip() + char
-                        tokens.append(sent)
-            break
-
-    
-    # print('TOKENS: ',tokens , '\n')
-    # merge incomplete tokens into one and add the complete tokens to complete_sentences list
+    x = re.split(r'(([A-Za-z])[.!?)])', text)
+  
     try:
-        for i in range(len(tokens)):
-            string = ''
-            if '”' in tokens[i] or '"' in tokens[i]:
-                continue
-            elif '”' in tokens[i + 1] or '"' in tokens[i + 1]:
-                if'”' in tokens[i + 2] or '"' in tokens[i + 2]:
-                    string = tokens[i] + ' ' + tokens[i + 1] + ' ' + tokens[i + 2]
-                    complete_sentences.append(string)
-                elif '”' in tokens[i + 3] or '"' in tokens[i + 3]:
-                    string = tokens[i] + ' ' + tokens[i + 1] + ' ' + tokens[i + 2] + ' ' + tokens[i + 3]
-                    complete_sentences.append(string)
-                else:
-                    string = tokens[i] + ' ' + tokens[i + 1]
-                    complete_sentences.append(string)
+        for sent in range(len(x)):
+            if len(x[sent]) > 2:
+                if len(x[sent + 1]) == 2:
+                    sentence = x[sent].lstrip('.').strip()
+                    if ')' in  x[sent + 1]:
+                        sentence += x[sent + 1] + '.'
+                    else:
+                        sentence += x[sent + 1]
             else:
-                complete_sentences.append(tokens[i])
-            
+                continue
+            complete_sentences.append(sentence)
     except IndexError:
         pass
 
-    # print(complete_sentences)
+    # print('COMPLETE SENTENCES: ' , complete_sentences)
     return complete_sentences
 
 # Categorize sentences into desription, specifications, dimensions
-# ? re for dimention extraction: '\d.*[A-Z]'
 def categorize_text(text):
     description = []
     specifications = []
     dimensions = []
 
+    # classify sentences into dimensions, specifications, and description
     spec_sent = ''
     dim_sent = ''
     try:
@@ -229,20 +187,70 @@ def categorize_text(text):
             if first.isupper():
                 spec_sent += sent + ' '
                 specifications.append(sent + ' ')
-            elif first == 'Dimensions' or first == 'Interior':
-                dim_sent += sent + ' '
-                dimensions.append(dim_sent)
             else:
-                if spec_sent != '' and dim_sent == '':
+                if spec_sent != '':
                     specifications.append(sent + ' ')
-                elif spec_sent != '' and dim_sent != '':
-                    dimensions.append(sent + ' ')
                 else:
                     description.append(sent + ' ')
     except IndexError:
         pass
-    # print("Description: " , description)
-    # print('\nSpecifications: ' , specifications)
+    
+    warranty = ''
+    # Add sentences from specifications to desciption and delete those from specifications
+    try:
+        for i in specifications:
+            if warranty != '':
+                description.append(i)           
+            else:
+                if "limited warranty." in i:
+                    warranty = i
+    except IndexError:
+        pass
+
+    # Remove dimensions sentences from specifications
+    for s in specifications:
+        index = specifications.index(s)
+        q = s.count('”') 
+        q1 = s.count('"') 
+        
+        if q > 2 or q1 > 2:
+            if '(2 people).' in s or ').' in s:
+                if '"' in s or '”' in s:
+                    pass
+                else:
+                    dim = s.split(').')[1].strip()
+                    temp = s.split(').')[0].strip()
+                    spec = temp + ').'
+                    dimensions.append(dim)
+                    specifications.remove(s)
+                    specifications.insert(index, spec)
+            else:
+                dimensions.append(s)
+    
+    specifications = [x for x in specifications if x not in description and x not in dimensions]
+    
+    # Strip white spaces between '.' and '"' in dimensions
+    for d in dimensions:
+        index = dimensions.index(d)
+        dim = ''
+        if 'Interior dimensions' in d:
+            dim = d.split('are')[1].strip().replace(" ","").replace('x', ' x ')
+            dimensions.remove(d)
+            dimensions.insert(index, dim)
+        elif ', commercial' in d:
+            dim = d.split(', commercial')[0].strip().replace(" ","").replace('x', ' x ')
+            dimensions.remove(d)
+            dimensions.insert(index, dim)
+        elif 'mattresses' in d or 'mattress' in d:
+            pass
+
+        else:     
+            dim = d.replace(" ","").replace('x', ' x ').replace(':',': ')
+            dimensions.remove(d)
+            dimensions.insert(index, dim)
+        
+    # print('Specifications: ' , specifications)
+    # print("\nDescription: " , description)
     # print('\nDimensions: ' , dimensions)
 
     return description, specifications, dimensions
@@ -251,7 +259,7 @@ def categorize_text(text):
 def get_body_html(pl, p_type):
 
     body = ''
-    structure = '<h4>Description</h4>\n' + '<p>items Included</p>\n' + '<ul>\n' + '<li>...</li>\n' + '</ul>\n' + '<meta charset="utf-8">\n' + \
+    structure = '<h4>Description</h4>\n' + '<p>Items Included</p>\n' + '<ul>\n' + '<li>...</li>\n' + '</ul>\n' + '<meta charset="utf-8">\n' + \
         '<p><span>...</span></p>\n' + '<h4>Dimensions</h4>\n' + '<p>...</p>\n' + \
         '<h4>Specifications</h4>\n' + '<ul>\n' + '<li>...</li>\n' + '</ul>'
 
@@ -261,42 +269,53 @@ def get_body_html(pl, p_type):
 
     description, specifications, dimensions = categorize_text(text)
 
-    desc = ''
-    for row in description:
-        desc += row
+    # Append sentences in DESCRIPTION list to body IF EXIST
+    if description:
+        desc = ''
+        for row in description:
+            desc += row
 
-    body += '<h4>Description</h4>\n' + '<p>items Included</p>\n'
-    body += '<ul>\n' + '<li>' + p_type + '</li>\n' + \
-        '</ul>\n' + '<meta charset="utf-8">\n'
-    body += '<p><span>' + desc + '</span></p>\n' + '<h4>Dimensions</h4>\n'
+        body += '<h4>Description</h4>\n' + '<p>items Included</p>\n'
+        body += '<ul>\n' + '<li>' + p_type + '</li>\n' + \
+            '</ul>\n' + '<meta charset="utf-8">\n'
+        body += '<p><span>' + desc + '</span></p>\n' + '<h4>Dimensions</h4>\n'
+    else:
+        pass
 
-    for row in dimensions:
-        body += '<p>' + row + '</p>\n'
+    # Append sentences in DIMENSIONS list to body IF EXIST
+    if dimensions:
+        for row in dimensions:
+            body += '<p>' + row + ' ' + '</p>\n'
 
     body += '<h4>Specifications</h4>\n' + '<ul>\n'
 
-    sent = ''
-    list1 = []
-    for row in specifications:
-        words = row.split()
-        first = words[0]
+    # Append sentences in SPECIFICATIONS list to body IF EXIST
+    if specifications:
+        sent = ''
+        list1 = []
+        for row in specifications:
+            words = row.split()
+            first = words[0]
 
-        if first.isupper():
-            if sent != '':
-                body += '<li>' + sent + '</li>\n'
-                sent = ''
-                sent += row
+            if first.isupper():
+                if sent != '':
+                    body += '<li>' + sent + '</li>\n'
+                    sent = ''
+                    sent += row
+                else:
+                    sent += row
+            elif first == 'Assembly':
+                body += '<li>' + row + '</li>\n'
             else:
                 sent += row
-        else:
-            sent += row
 
-    body += '<li>' + sent + '</li>\n' + '</ul>'
+        body += '<li>' + sent + '</li>\n' + '</ul>'
+    else:
+        pass
 
     return body
 
 # Get tags of each product and append it to listw
-#! Need more tags
 def gen_tags(pl):
 
     product_tags = ['Bestar', 'Brand_Modubox', 'Made In_Canada']
@@ -340,7 +359,6 @@ def get_image(pl):
                     images.append(v)
         img_lists.append(images)
 
-    print(img_lists)
     return img_lists
 
 # Get the type for the product
@@ -384,7 +402,6 @@ def get_upc(pl):
     
     return barcodes
 
-#! Not finished
 # Get the option name and value and put it into a dict
 # Options [Color, Size, Title]
 def get_option_name_value(pl):
@@ -425,7 +442,20 @@ def get_sku(pl):
     
     return skus
 
-def produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, main_img, img, obj, obj_num):
+def get_cost_per_item(pl):
+
+    costs = []
+
+    for product in pl:
+        for k,v in product.items():
+            if k == 'Delivered Cost CA':
+                price = v.split('$')[1].strip()
+                costs.append(price)
+ 
+    return costs
+
+
+def produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, cost_per_item, main_img, alt_text, img, obj, obj_num):
 
     template_header = {'Handle': '', 'Title': '', 'Body (HTML)': '',
                        'Vendor': '', 'Type': '', 'Tags': '', 'Published': '', 'Option1 Name': '',
@@ -488,11 +518,13 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
         template_header['Variant Weight Unit'] = weight_unit
         template_header['Image Src'] = main_img[img]
         template_header['Image Position'] = img + 1
+        template_header['Image Alt Text'] = alt_text[img]
+        template_header['Cost per items'] = cost_per_item[obj]
+
 
         new_line = template_header
 
     else:
-
         if obj >= 1 and img == 0:
 
             for key, value in option_dicts[obj].items():
@@ -513,6 +545,9 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
             template_header['Variant Weight Unit'] = weight_unit
             template_header['Image Src'] = main_img[obj]
             template_header['Image Position'] = img + 1
+            template_header['Image Alt Text'] = alt_text[obj]
+            template_header['Cost per items'] = cost_per_item[obj]
+
 
             new_line = template_header
         else:
@@ -521,17 +556,16 @@ def produce_template_line(handle, skus, barcodes, title, body, option_dicts, pro
             except IndexError:
                 pass
             template_header['Image Position'] = img + 1
-
+            if obj_num > 1:
+                template_header['Image Alt Text'] = alt_text[obj]
             new_line = template_header
 
-
-    
     return new_line
 
 
 def main():
     filename_price = 'Price List -  Bestar - September 2020 - Canada.csv'
-    filename_sku = 'Bestar SKU GoWFB.ca list.csv'
+    filename_sku = 'Bestar SKU GoWFB.ca list.csv' # - change file to Matt's pricelist
     filename_template = 'product_export_template.csv'
 
     # Return a list of new product SKUs with needed information
@@ -541,33 +575,47 @@ def main():
     sorted_list = sorted(price_list, key=lambda i: i['Model #'])
 
     classified_list = classify_product(sorted_list)
+    
+    # for product in classified_list:
+    #     # if product[0]['Model #'] == '109220-000017':
+    #     skus = get_sku(product)
+    #     print(skus)
+    #     text = get_text(product[0])
 
-    with open('new_bestar_list.csv', 'w', newline='') as outputfile:
+    #     description, specifications, dimensions = categorize_text(text)
+
+    #     print('Specifications: ' , specifications)
+    #     print("\nDescription: " , description)
+    #     print('\nDimensions: ' , dimensions , '\n')
+
+    with open('generated_new_Bestar_import.csv', 'w', newline='') as outputfile:
         writer = csv.DictWriter(outputfile, fieldnames=columns)
         writer.writeheader()
 
         for items in classified_list:
 
             product_type = get_type(items)
-            body = get_body_html(items, product_type)
             option_dicts = get_option_name_value(items)
             barcodes = get_upc(items)
             total_weights = get_weight(items)
+
             skus = get_sku(items)
+            # print(skus)
+            cost_per_item = get_cost_per_item(items)
             
+            body = get_body_html(items, product_type)
             img_lists = get_image(items)       
 
             tags = gen_tags(items)
             title, handle = get_title_handle(items)
             
+            alt_text = get_img_alt_text(items)
             obj_num = len(items)
 
-           
             for obj in range(len(img_lists)):
                 for i in range(len(img_lists[obj])):
-                    line = produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, img_lists[obj], i , obj, obj_num)
+                    line = produce_template_line(handle, skus, barcodes, title, body, option_dicts, product_type, tags, total_weights, cost_per_item, img_lists[obj], alt_text, i , obj, obj_num)
                     writer.writerow(line)
-
 
 
 if __name__ == '__main__':
